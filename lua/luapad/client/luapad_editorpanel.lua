@@ -1,7 +1,9 @@
-local editorTheme = CreateClientConVar( "luapad_theme", "light", true, false, "Determines the theme for the Luapad editor." )
-local fontSizeCvar = CreateClientConVar( "luapad_font_size", 16, true, false, "The font size of the Luapad editor." )
-local fontNameCvar = CreateClientConVar( "luapad_font_name", "Courier New", true, false, "The font name of the Luapad editor." )
-local fontWeightCvar = CreateClientConVar( "luapad_font_weight", 400, true, false, "The weight of the luapad editor font." )
+local conVarSuffix = MENU_DLL and "_mn" or ""
+
+local editorTheme = CreateClientConVar( "luapad_theme" .. conVarSuffix, "light", true, false, "Determines the theme for the Luapad editor." )
+local fontSizeCvar = CreateClientConVar( "luapad_font_size" .. conVarSuffix, 16, true, false, "The font size of the Luapad editor." )
+local fontNameCvar = CreateClientConVar( "luapad_font_name" .. conVarSuffix, "Courier New", true, false, "The font name of the Luapad editor." )
+local fontWeightCvar = CreateClientConVar( "luapad_font_weight" .. conVarSuffix, 400, true, false, "The weight of the luapad editor font." )
 
 local function setupFonts()
     local fontName = fontNameCvar:GetString()
@@ -20,9 +22,10 @@ local function setupFonts()
     } )
 end
 
-cvars.AddChangeCallback( "luapad_font_size", setupFonts, "LuapadEditor" )
-cvars.AddChangeCallback( "luapad_font_name", setupFonts, "LuapadEditor" )
-cvars.AddChangeCallback( "luapad_font_weight", setupFonts, "LuapadEditor" )
+cvars.AddChangeCallback( "luapad_font_size" .. conVarSuffix, setupFonts, "LuapadEditor" )
+cvars.AddChangeCallback( "luapad_font_name" .. conVarSuffix, setupFonts, "LuapadEditor" )
+cvars.AddChangeCallback( "luapad_font_weight" .. conVarSuffix, setupFonts, "LuapadEditor" )
+
 setupFonts()
 
 local colors = {}
@@ -56,7 +59,7 @@ local function setTheme( theme )
     colors["function"] = luapad.GetThemeColor( "func", theme )
 end
 
-cvars.AddChangeCallback( "luapad_theme", function( _, _, new )
+cvars.AddChangeCallback( "luapad_theme" .. conVarSuffix, function( _, _, new )
     setTheme( new )
 
     for _, panel in ipairs( vgui.GetAll() ) do
@@ -64,7 +67,7 @@ cvars.AddChangeCallback( "luapad_theme", function( _, _, new )
             panel.PaintRows = {} -- so it refreshes the text color
         end
     end
-end )
+end, "LuapadEditor" )
 
 local keywordTable = {
     ["if"] = true,
@@ -103,6 +106,15 @@ local table_insert = table.insert
 local input_IsKeyDown = input.IsKeyDown
 local draw_SimpleText = draw.SimpleText
 local lineNumberWidth = 4
+local TEXT_ALIGN_RIGHT = TEXT_ALIGN_RIGHT or 2
+
+local GetTime
+
+if not MENU_DLL then
+    GetTime = RealTime
+else
+    GetTime = SysTime
+end
 
 local PANEL = {}
 function PANEL:Init()
@@ -125,7 +137,7 @@ function PANEL:Init()
     self.Undo = {}
     self.Redo = {}
     self.PaintRows = {}
-    self.Blink = RealTime()
+    self.Blink = GetTime()
     self.ScrollBar = vgui.Create( "DVScrollBar", self )
     self.ScrollBar:SetUp( 1, 1 )
     self.TextEntry = vgui.Create( "TextEntry", self )
@@ -201,7 +213,7 @@ function PANEL:OnMousePressed( code )
         self.tmp = true
         self.LastClick = CurTime()
         self:RequestFocus()
-        self.Blink = RealTime()
+        self.Blink = GetTime()
         self.MouseDown = true
         self.Caret = self:CursorToCaret()
 
@@ -496,7 +508,7 @@ function PANEL:PaintLine( row )
         end
     end
 
-    if row == self.Caret[1] and self.TextEntry:HasFocus() and ( RealTime() - self.Blink ) % 0.8 < 0.4 and self.Caret[2] - self.Scroll[2] >= 0 then
+    if row == self.Caret[1] and self.TextEntry:HasFocus() and ( GetTime() - self.Blink ) % 0.8 < 0.4 and self.Caret[2] - self.Scroll[2] >= 0 then
         surface.SetDrawColor( caretColor.r, caretColor.g, caretColor.b, caretColor.a )
         surface.DrawRect( ( self.Caret[2] - self.Scroll[2] ) * width + width * lineNumberWidth + 6, ( self.Caret[1] - self.Scroll[1] ) * height, 1, height )
     end
@@ -864,7 +876,7 @@ function PANEL:SelectAll()
 end
 
 function PANEL:_OnKeyCodeTyped( code )
-    self.Blink = RealTime()
+    self.Blink = GetTime()
     local alt = input_IsKeyDown( KEY_LALT ) or input_IsKeyDown( KEY_RALT )
     local shift = input_IsKeyDown( KEY_LSHIFT ) or input_IsKeyDown( KEY_RSHIFT )
     local control = input_IsKeyDown( KEY_LCONTROL ) or input_IsKeyDown( KEY_RCONTROL )
@@ -974,13 +986,21 @@ function PANEL:_OnKeyCodeTyped( code )
             if not shift then
                 self.Start = self:CopyPosition( self.Caret )
             end
-        elseif code == KEY_T then -- Run script on server
-            luapad.RunScriptServer( luapad.getCurrentScript() )
-        elseif code == KEY_G then -- Run script on client
-            luapad.RunScriptClient()
-        elseif code == KEY_B then -- Run script on both
-            luapad.RunScriptServer( luapad.getCurrentScript() )
-            luapad.RunScriptClient()
+        else
+            if MENU_DLL then
+                if code == KEY_R then -- Run script on menu
+                    luapad.RunScriptMenu()
+                end
+            else
+                if code == KEY_T then -- Run script on server
+                    luapad.RunScriptServer( luapad.getCurrentScript() )
+                elseif code == KEY_G then -- Run script on client
+                    luapad.RunScriptClient()
+                elseif code == KEY_B then -- Run script on both
+                    luapad.RunScriptServer( luapad.getCurrentScript() )
+                    luapad.RunScriptClient()
+                end
+            end
         end
     else
         if code == KEY_ENTER then

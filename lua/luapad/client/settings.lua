@@ -1,6 +1,7 @@
 luapad.Settings = {}
 
-local editorTheme = GetConVar( "luapad_theme" )
+local conVarSuffix = MENU_DLL and "_mn" or ""
+local editorTheme = GetConVar( "luapad_theme" .. conVarSuffix )
 
 function luapad.ToggleSettingsMenu()
     local frame = vgui.Create( "DFrame" )
@@ -24,7 +25,7 @@ function luapad.ToggleSettingsMenu()
     end
 
     theme.OnSelect = function( _, _, _, data )
-        editorTheme:SetString( data )
+        RunConsoleCommand( "luapad_theme" .. conVarSuffix, data )
     end
 
     local font = vgui.Create( "DNumSlider", frame )
@@ -33,11 +34,11 @@ function luapad.ToggleSettingsMenu()
     font:SetMin( 4 )
     font:SetMax( 128 )
     font:SetDecimals( 0 )
-    font:SetConVar( "luapad_font_size" )
+    font:SetConVar( "luapad_font_size" .. conVarSuffix )
 
     local fontName = vgui.Create( "DTextEntry", frame )
     fontName:Dock( TOP )
-    fontName:SetConVar( "luapad_font_name" )
+    fontName:SetConVar( "luapad_font_name" .. conVarSuffix )
 
     local weight = vgui.Create( "DNumSlider", frame )
     weight:Dock( TOP )
@@ -45,12 +46,14 @@ function luapad.ToggleSettingsMenu()
     weight:SetMin( 100 )
     weight:SetMax( 1000 )
     weight:SetDecimals( 0 )
-    weight:SetConVar( "luapad_font_weight" )
+    weight:SetConVar( "luapad_font_weight" .. conVarSuffix )
 
-    local realm = vgui.Create( "DCheckBoxLabel", frame )
-    realm:Dock( TOP )
-    realm:SetText( "Left-handed realm selector" )
-    realm:SetConVar( "luapad_console_realm_left" )
+    if not MENU_DLL then
+        local realm = vgui.Create( "DCheckBoxLabel", frame )
+        realm:Dock( TOP )
+        realm:SetText( "Left-handed realm selector" )
+        realm:SetConVar( "luapad_console_realm_left" )
+    end
 
     local button = vgui.Create( "DButton", frame )
     button:Dock( BOTTOM )

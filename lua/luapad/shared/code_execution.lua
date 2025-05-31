@@ -1,6 +1,11 @@
 local function setEnvFunctions( ply, env )
     env.__send = function( str, color, newline )
         newline = newline == nil and true or newline
+        
+        if MENU_DLL then
+            return luapad.AddConsoleText( str, color or luapad.Colors.menuConsole, newline )
+        end
+
         if CLIENT then
             if LocalPlayer() == ply then
                 luapad.AddConsoleText( str, color or luapad.Colors.clientConsole, newline )
@@ -126,7 +131,10 @@ local function createEnv( ply, func )
     local env = {}
 
     setEnvFunctions( ply, env )
-    setEnvVariables( ply, env )
+
+    if not MENU_DLL then
+        setEnvVariables( ply, env )
+    end
 
     hook.Run( "LuapadCustomizeEnv", ply, env )
 
@@ -156,7 +164,14 @@ local function gettraceback( err )
 end
 
 function luapad.Execute( owner, code )
-    local src = "Luapad[" .. owner:SteamID() .. "]" .. owner:Nick() .. ".lua"
+    local src
+
+    if not MENU_DLL then
+        src = "Luapad[" .. owner:SteamID() .. "]" .. owner:Nick() .. ".lua"
+    else
+        src = "Luapad[MENU]"
+    end
+    
     local func = CompileString( "return " .. code, src, false )
     if not isfunction( func ) then
         func = CompileString( code, src, false )

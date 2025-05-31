@@ -1,3 +1,17 @@
+local function getConsole()
+    if not IsValid( luapad.Frame ) then return false end
+    if not IsValid( luapad.Frame.Console ) then return false end
+    return luapad.Frame.Console
+end
+
+function luapad.AddConsoleText( str, clr, newline )
+    local console = getConsole()
+    if not console then return end
+
+    luapad.AddHudConsoleText( str, clr, newline )
+    console:AddConsoleText( str, clr, newline )
+end
+
 function luapad.CheckGlobal( func )
     if luapad._sG[func] ~= nil then
         return luapad._sG[func]
@@ -18,6 +32,21 @@ function luapad.getCurrentScript()
     return luapad.PropertySheet:GetActiveTab():GetPanel():GetValue() or ""
 end
 
+if MENU_DLL then
+    function luapad.RunScriptMenu()
+        local success, ret = luapad.Execute( nil, luapad.getCurrentScript() )
+        if success then
+            luapad.AddConsoleText( "Code ran successfully!", color_white )
+        end
+
+        if ret ~= nil then
+            luapad.AddConsoleText( luapad.PrettyPrint( ret ), luapad.Colors.menuConsole )
+        end
+    end
+
+    return
+end
+
 function luapad.RunScriptClient()
     if not luapad.CanUseCL( LocalPlayer() ) then return end
     local success, ret = luapad.Execute( LocalPlayer(), luapad.getCurrentScript() )
@@ -30,20 +59,6 @@ function luapad.RunScriptClient()
     end
 end
 
-net.Receive( "luapad_runclient", function()
-    local runner = net.ReadPlayer()
-    if not IsValid( runner ) then return end
-
-    local script = luapad.ReadCompressed()
-    local success, err = luapad.Execute( runner, script )
-    if not success then
-        net.Start( "luapad_prints_cl" )
-            net.WritePlayer( runner )
-            luapad.WriteCompressed( err )
-        net.SendToServer()
-    end
-end )
-
 function luapad.RunScriptServer( code )
     if not luapad.CanUseSV() then return end
 
@@ -51,18 +66,6 @@ function luapad.RunScriptServer( code )
     luapad.WriteCompressed( code )
     net.SendToServer()
 end
-
-net.Receive( "luapad_runserver", function()
-    local success = net.ReadBool()
-    if success then
-        luapad.AddConsoleText( "Code executed on server successfully.", Color( 92, 205, 92, 255 ) )
-    end
-
-    local ret = luapad.ReadCompressed()
-    if #ret > 0 then
-        luapad.AddConsoleText( ret, luapad.Colors.serverConsole )
-    end
-end )
 
 function luapad.RunScriptServerClient()
     if not luapad.CanUseSV() then return end
@@ -83,19 +86,31 @@ function luapad.RunScriptOnClient( ply )
     net.SendToServer()
 end
 
-local function getConsole()
-    if not IsValid( luapad.Frame ) then return false end
-    if not IsValid( luapad.Frame.Console ) then return false end
-    return luapad.Frame.Console
-end
+net.Receive( "luapad_runclient", function()
+    local runner = net.ReadPlayer()
+    if not IsValid( runner ) then return end
 
-function luapad.AddConsoleText( str, clr, newline )
-    local console = getConsole()
-    if not console then return end
+    local script = luapad.ReadCompressed()
+    local success, err = luapad.Execute( runner, script )
+    if not success then
+        net.Start( "luapad_prints_cl" )
+            net.WritePlayer( runner )
+            luapad.WriteCompressed( err )
+        net.SendToServer()
+    end
+end )
 
-    luapad.AddHudConsoleText( str, clr, newline )
-    console:AddConsoleText( str, clr, newline )
-end
+net.Receive( "luapad_runserver", function()
+    local success = net.ReadBool()
+    if success then
+        luapad.AddConsoleText( "Code executed on server successfully.", Color( 92, 205, 92, 255 ) )
+    end
+
+    local ret = luapad.ReadCompressed()
+    if #ret > 0 then
+        luapad.AddConsoleText( ret, luapad.Colors.serverConsole )
+    end
+end )
 
 net.Receive( "luapad_prints_cl", function()
     local ply = net.ReadPlayer()

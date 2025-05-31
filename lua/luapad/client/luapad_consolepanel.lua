@@ -1,4 +1,4 @@
-local realmSideCvar = CreateClientConVar( "luapad_console_realm_left", 1, true, false, "Whether the realm selector for the console appears on the left." )
+local realmSideCvar = not MENU_DLL and CreateClientConVar( "luapad_console_realm_left", 1, true, false, "Whether the realm selector for the console appears on the left." )
 
 local PANEL = {}
 
@@ -30,39 +30,41 @@ function PANEL:Init()
     self.Bottombar:Dock( BOTTOM )
     self.Bottombar:SetPaintBackground( false )
 
-    self.Realm = vgui.Create( "DComboBox", self.Bottombar )
-    self.Realm:SetWide( 100 )
+    if not MENU_DLL then
+        self.Realm = vgui.Create( "DComboBox", self.Bottombar )
+        self.Realm:SetWide( 100 )
 
-    if realmSideCvar:GetBool() then
-        self.Realm:DockMargin( 0, 0, 5, 0 )
-        self.Realm:Dock( LEFT )
-    else
-        self.Realm:DockMargin( 5, 0, 0, 0 )
-        self.Realm:Dock( RIGHT )
+        if realmSideCvar:GetBool() then
+            self.Realm:DockMargin( 0, 0, 5, 0 )
+            self.Realm:Dock( LEFT )
+        else
+            self.Realm:DockMargin( 5, 0, 0, 0 )
+            self.Realm:Dock( RIGHT )
+        end
+
+        self.Realm.Icon = self.Realm:Add( "DImage" )
+        self.Realm.Icon:SetImage( "!luapadClient" )
+        self.Realm.Icon:SetSize( 16, 16 )
+        self.Realm.Icon:SetPos( 4, 4 )
+
+        self.Realm._SetText = self.Realm.SetText
+        function self.Realm:SetText( text )
+            self:_SetText( "      " .. text )
+            self.Icon:SetImage( "!luapad" .. text )
+        end
+
+        self.Realm._GetValue = self.Realm.GetValue
+        function self.Realm:GetValue()
+            return self:_GetValue():sub( 7 )
+        end
+
+        self.Realm:AddChoice( "Client", nil, false, "!luapadClient" )
+        if luapad.CanUseSV() then
+            self.Realm:AddChoice( "Server", nil, false, "!luapadServer" )
+            self.Realm:AddChoice( "Shared", nil, false, "!luapadShared" )
+        end
+        self.Realm:SetValue( "Client" )
     end
-
-    self.Realm.Icon = self.Realm:Add( "DImage" )
-    self.Realm.Icon:SetImage( "!luapadClient" )
-    self.Realm.Icon:SetSize( 16, 16 )
-    self.Realm.Icon:SetPos( 4, 4 )
-
-    self.Realm._SetText = self.Realm.SetText
-    function self.Realm:SetText( text )
-        self:_SetText( "      " .. text )
-        self.Icon:SetImage( "!luapad" .. text )
-    end
-
-    self.Realm._GetValue = self.Realm.GetValue
-    function self.Realm:GetValue()
-        return self:_GetValue():sub( 7 )
-    end
-
-    self.Realm:AddChoice( "Client", nil, false, "!luapadClient" )
-    if luapad.CanUseSV() then
-        self.Realm:AddChoice( "Server", nil, false, "!luapadServer" )
-        self.Realm:AddChoice( "Shared", nil, false, "!luapadShared" )
-    end
-    self.Realm:SetValue( "Client" )
 
     self.Input = vgui.Create( "DTextEntry", self.Bottombar )
     self.Input:Dock( FILL )
@@ -99,19 +101,22 @@ function PANEL:Init()
 
         self.Input.HistoryPos = 0
 
-        local isClient = self.Realm:GetValue() == "Client"
-        local isServer = self.Realm:GetValue() == "Server"
-        local isShared = self.Realm:GetValue() == "Shared"
+        local isNotMenu = not MENU_DLL
+        local isClient = isNotMenu and self.Realm:GetValue() == "Client"
+        local isServer = isNotMenu and self.Realm:GetValue() == "Server"
+        local isShared = isNotMenu and self.Realm:GetValue() == "Shared"
 
-        if isClient or isShared then
-            local success, ret = luapad.Execute( LocalPlayer(), text )
+        if isClient or isShared or MENU_DLL then
+            local success, ret = luapad.Execute( isNotMenu and LocalPlayer(), text )
+            local color = isNotMenu and luapad.Colors.clientConsole or luapad.Colors.menuConsole
+
             if success and ret ~= nil then
-                luapad.AddConsoleText( luapad.PrettyPrint( ret ), luapad.Colors.clientConsole )
+                luapad.AddConsoleText( luapad.PrettyPrint( ret ), color )
             elseif not success then
-                self:AddConsoleText( ret, luapad.Colors.clientConsole )
+                self:AddConsoleText( ret, color )
             end
 
-            if isClient then
+            if isClient or MENU_DLL then
                 return
             end
         end

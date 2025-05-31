@@ -146,6 +146,15 @@ local function setupToolbar()
 
     addToolbarSpacer()
 
+    if MENU_DLL then
+        addToolbarItem( "Run", "icon16/page_white_go.png", function()
+            luapad.SaveTabs()
+            luapad.RunScriptMenu()
+        end )
+
+        return
+    end
+
     local isSVUser = luapad.CanUseSV()
 
     addToolbarItem( "Run Clientside", "!luapadRunClient", function()
@@ -379,15 +388,23 @@ function luapad.OpenScript()
     node2.Icon:SetImage( "icon16/folder_page_white.png" )
 end
 
-concommand.Add( "luapad", function()
-    if luapad.CanUseCL() then
-        luapad.Toggle()
-        return
-    end
+if not MENU_DLL then
+    concommand.Add( "luapad", function()
+        if luapad.CanUseCL() then
+            luapad.Toggle()
+            return
+        end
 
-    luapad.RequestCLAuth( luapad.Toggle )
-end )
+        luapad.RequestCLAuth( luapad.Toggle )
+    end )
 
-concommand.Add( "luapad_auth_refresh", function()
-    luapad.RequestCLAuth( setupToolbar )
-end )
+    concommand.Add( "luapad_auth_refresh", function()
+        luapad.RequestCLAuth( setupToolbar )
+    end )
+else
+    concommand.Add( "luapad_mn", function()
+        if not IsInGame() then
+            luapad.Toggle()
+        end
+    end )
+end
